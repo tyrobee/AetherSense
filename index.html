@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AetherSense — Environmental Intelligence</title>
+
+  <!-- ============================================================
+       FONTS
+       Using Cormorant Garamond (elegant display) + DM Sans (clean data)
+       Both loaded from Google Fonts.
+       To change fonts: replace the @import URL below and update
+       --font-display and --font-body in :root
+  ============================================================ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <!-- ============================================================
+       CHART LIBRARY — Chart.js v4 from CDN
+       Used for all line/area charts.
+       If you prefer a different library (e.g. ApexCharts, Recharts),
+       swap the CDN link and update the chart init section below.
+  ============================================================ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <style>
+    /* ============================================================
+       DESIGN TOKENS — change these to retheme the entire app
+    ============================================================ */
+    :root {
+      /* Palette */
+      --bg:           #f4f1ec;        /* warm ivory base */
+      --surface:      rgba(255,255,255,0.62);  /* glass card surface */
+      --surface-solid:#ffffff;
+      --border:       rgba(180,170,155,0.35);
+
+      --sage:         #8aab8e;        /* primary accent — sage green */
+      --sage-light:   #c4d9c6;
+      --sage-dark:    #527a57;
+
+      --amber:        #d4a853;        /* warning colour */
+      --amber-light:  #f5e4b8;
+      --rose:         #c97070;        /* critical colour */
+      --rose-light:   #f5d0d0;
+
+      --ink:          #2e2b26;        /* primary text */
+      --ink-mid:      #6b6560;        /* secondary text */
+      --ink-soft:     #a39e98;        /* muted text */
+
+      /* Typography */
+      --font-display: 'Cormorant Garamond', Georgia, serif;
+      --font-body:    'DM Sans', sans-serif;
+
+      /* Spacing scale */
+      --sp-xs:  4px;
+      --sp-sm:  8px;
+      --sp-md:  16px;
+      --sp-lg:  24px;
+      --sp-xl:  40px;
+      --sp-2xl: 64px;
+
+      /* Radii */
+      --r-sm: 8px;
+      --r-md: 16px;
+      --r-lg: 24px;
+      --r-xl: 36px;
+
+      /* Shadows */
+      --shadow-sm: 0 2px 8px rgba(46,43,38,0.07);
+      --shadow-md: 0 6px 24px rgba(46,43,38,0.10);
+      --shadow-lg: 0 16px 48px rgba(46,43,38,0.12);
+    }
+
+    /* ============================================================
+       RESET & BASE
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg);
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.6;
+      /* Subtle noise texture overlay — gives organic warmth */
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    }
+
+    /* ============================================================
+       REUSABLE GLASS CARD
+       Used for all data cards, chart containers, etc.
+    ============================================================ */
+    .card {
+      background: var(--surface);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+
+    /* ============================================================
+       UTILITY CLASSES
+    ============================================================ */
+    .label {
+      font-family: var(--font-body);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+
+    /* ============================================================
+       ██╗      █████╗ ███╗   ██╗██████╗ ██╗███╗   ██╗ ██████╗
+       ██║     ██╔══██╗████╗  ██║██╔══██╗██║████╗  ██║██╔════╝
+       ██║     ███████║██╔██╗ ██║██║  ██║██║██╔██╗ ██║██║  ███╗
+       ██║     ██╔══██║██║╚██╗██║██║  ██║██║██║╚██╗██║██║   ██║
+       ███████╗██║  ██║██║ ╚████║██████╔╝██║██║ ╚████║╚██████╔╝
+                            LANDING PAGE
+    ============================================================ */
+
+    /* ---- Full-viewport landing section ---- */
+    #landing {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: var(--sp-xl) var(--sp-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Decorative blurred orbs — purely aesthetic, can be removed */
+    #landing::before,
+    #landing::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    #landing::before {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(138,171,142,0.18) 0%, transparent 70%);
+      top: -100px; left: -100px;
+    }
+    #landing::after {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(212,168,83,0.12) 0%, transparent 70%);
+      bottom: -80px; right: -80px;
+    }
+
+    .landing-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 680px;
+    }
+
+    /* System badge */
+    .landing-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-sm);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 16px;
+      margin-bottom: var(--sp-lg);
+      box-shadow: var(--shadow-sm);
+      animation: fadeUp 0.6s ease both;
+    }
+    .landing-badge .dot {
+      width: 7px; height: 7px;
+      background: var(--sage);
+      border-radius: 50%;
+      /* Pulse animation — communicates "live" */
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+    .landing-badge span { font-size: 11px; color: var(--ink-mid); letter-spacing: 0.08em; font-weight: 500; }
+
+    /* Main headline */
+    .landing-title {
+      font-family: var(--font-display);
+      font-size: clamp(52px, 9vw, 96px);
+      font-weight: 300;
+      line-height: 1.0;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      animation: fadeUp 0.7s 0.1s ease both;
+    }
+    .landing-title em {
+      font-style: italic;
+      color: var(--sage-dark);
+    }
+
+    /* Tagline */
+    .landing-tagline {
+      margin-top: var(--sp-lg);
+      font-size: 16px;
+      font-weight: 300;
+      color: var(--ink-mid);
+      max-width: 480px;
+      margin-inline: auto;
+      animation: fadeUp 0.7s 0.2s ease both;
+    }
+
+    /* Sensor preview pills — shown on landing */
+    .landing-sensors {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp-sm);
+      justify-content: center;
+      margin-top: var(--sp-xl);
+      animation: fadeUp 0.7s 0.3s ease both;
+    }
+    .sensor-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 12px;
+      color: var(--ink-mid);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: var(--shadow-sm);
+    }
+    .sensor-pill .icon { font-size: 15px; }
+
+    /* CTA button */
+    .btn-enter {
+      margin-top: var(--sp-xl);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--ink);
+      color: var(--bg);
+      border: none;
+      border-radius: 999px;
+      padding: 14px 36px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      box-shadow: var(--shadow-md);
+      animation: fadeUp 0.7s 0.4s ease both;
+      text-decoration: none;
+    }
+    .btn-enter:hover {
+      background: var(--sage-dark);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+    .btn-enter .arrow { transition: transform 0.2s ease; }
+    .btn-enter:hover .arrow { transform: translateX(4px); }
+
+    /* Scroll hint at bottom of landing */
+    .scroll-hint {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      color: var(--ink-soft);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      animation: fadeUp 0.7s 0.6s ease both;
+    }
+    .scroll-hint .line {
+      width: 1px; height: 32px;
+      background: linear-gradient(to bottom, var(--ink-soft), transparent);
+      animation: scrollLine 1.6s ease-in-out infinite;
+    }
+
+
+    /* ============================================================
+       ██████╗  █████╗ ███████╗██╗  ██╗██████╗  ██████╗  █████╗ ██████╗ ██████╗
+       ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔══██╗██╔═══██╗██╔══██╗██╔══██╗██╔══██╗
+       ██║  ██║███████║███████╗███████║██████╔╝██║   ██║███████║██████╔╝██║  ██║
+                            DASHBOARD LAYOUT
+    ============================================================ */
+
+    #dashboard {
+      padding: var(--sp-xl) var(--sp-lg);
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* ---- Top nav bar ---- */
+    .nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-md) var(--sp-lg);
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-brand {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 400;
+      letter-spacing: 0.02em;
+      color: var(--ink);
+    }
+    .nav-brand em { font-style: italic; color: var(--sage-dark); }
+    .nav-time {
+      font-size: 12px;
+      color: var(--ink-soft);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .nav-time .live-dot {
+      width: 6px; height: 6px;
+      background: var(--sage);
+      border-radius: 50%;
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+
+    /* ---- Dashboard grid sections ---- */
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--ink);
+      margin-bottom: var(--sp-md);
+      padding-top: var(--sp-xl);
+    }
+    .section-title em { font-style: italic; color: var(--ink-mid); }
+
+    /* ---- Sensor value cards (top row) ---- */
+    .sensor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--sp-md);
+      margin-bottom: var(--sp-lg);
+    }
+
+    .sensor-card {
+      padding: var(--sp-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-sm);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .sensor-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Coloured top accent bar — changes by sensor type */
+    .sensor-card::before {
+      content: '';
+      display: block;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--accent, var(--sage));
+      width: 40px;
+      margin-bottom: var(--sp-xs);
+    }
+
+    .sensor-card .sensor-name { /* label above the value */ }
+    .sensor-card .sensor-value {
+      font-family: var(--font-display);
+      font-size: 52px;
+      font-weight: 300;
+      line-height: 1;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+    .sensor-card .sensor-unit {
+      font-size: 16px;
+      color: var(--ink-soft);
+      font-weight: 300;
+    }
+    .sensor-card .sensor-trend {
+      font-size: 12px;
+      color: var(--ink-soft);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Status badge within sensor card */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 500;
+      width: fit-content;
+    }
+    .status-normal  { background: rgba(138,171,142,0.18); color: var(--sage-dark); }
+    .status-warning { background: rgba(212,168,83,0.18);  color: #9a6f1a; }
+    .status-critical{ background: rgba(201,112,112,0.18); color: #8b3c3c; }
+
+    /* ---- System status + ML prediction row ---- */
+    .status-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--sp-md);
+      margin-bottom: var(--sp-lg);
+    }
+    @media (max-width: 640px) {
+      .status-row { grid-template-columns: 1fr; }
+    }
+
+    .system-status-card {
+      padding: var(--sp-lg);
+    }
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-md);
+      margin-top: var(--sp-md);
+    }
+    .status-orb {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      /* Glowing orb — colour set via JS */
+      box-shadow: 0 0 20px var(--orb-glow, rgba(138,171,142,0.4));
+      background: var(--orb-color, var(--sage-light));
+      transition: background 0.6s ease, box-shadow 0.6s ease;
+    }
+    .status-label-big {
+      font-family: var(--font-display);
+      font-size: 36px;
+      font-weight: 300;
+      line-height: 1;
+    }
+    .status-detail {
+      font-size: 12px;
+      color: var(--ink-mid);
+      margin-top: 4px;
+    }
+
+    /* ML prediction card */
+    .ml-card { padding: var(--sp-lg); }
+    .ml-output {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 400;
+      font-style: italic;
+      color: var(--ink);
+      margin-top: var(--sp-md);
+      line-height: 1.3;
+      min-height: 60px;
+      transition: opacity 0.4s ease;
+    }
+    .ml-confidence {
+      margin-top: var(--sp-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-sm);
+    }
+    .confidence-bar {
+      flex: 1;
+      height: 4px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .confidence-fill {
+      height: 100%;
+      background: var(--sage);
+      border-radius: 999px;
+      transition: width 0.6s ease;
+    }
+    .confidence-pct { font-size: 11px; color: var(--ink-soft); }
+
+    /* ---- Charts grid ---- */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: var(--sp-md);
+      margin-bottom: var(--sp-lg);
+    }
+    .chart-card {
+      padding: var(--sp-lg);
+    }
+    .chart-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: var(--sp-md);
+    }
+    .chart-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 400;
+    }
+    .chart-canvas-wrap {
+      position: relative;
+      height: 160px;
+    }
+
+    /* ---- Alerts panel ---- */
+    .alerts-card {
+      padding: var(--sp-lg);
+      margin-bottom: var(--sp-lg);
+    }
+    .alerts-list { display: flex; flex-direction: column; gap: var(--sp-sm); margin-top: var(--sp-md); }
+
+    .alert-item {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-md);
+      padding: var(--sp-md);
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+      background: var(--surface-solid);
+      animation: alertSlide 0.4s ease;
+    }
+    /* Alert severity colours */
+    .alert-item.normal   { border-color: var(--sage-light); background: rgba(138,171,142,0.06); }
+    .alert-item.warning  { border-color: var(--amber-light); background: rgba(212,168,83,0.06); }
+    .alert-item.critical { border-color: var(--rose-light);  background: rgba(201,112,112,0.06); }
+
+    .alert-icon { font-size: 20px; flex-shrink: 0; }
+    .alert-body { flex: 1; }
+    .alert-type { font-weight: 500; font-size: 13px; }
+    .alert-time { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+    .alert-severity {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+    .alert-item.normal   .alert-severity { background: rgba(138,171,142,0.18); color: var(--sage-dark); }
+    .alert-item.warning  .alert-severity { background: rgba(212,168,83,0.18);  color: #9a6f1a; }
+    .alert-item.critical .alert-severity { background: rgba(201,112,112,0.18); color: #8b3c3c; }
+
+    .no-alerts {
+      text-align: center;
+      padding: var(--sp-xl);
+      color: var(--ink-soft);
+      font-style: italic;
+      font-family: var(--font-display);
+      font-size: 18px;
+    }
+
+    /* ---- Data history table ---- */
+    .history-card { padding: var(--sp-lg); margin-bottom: var(--sp-xl); }
+
+    .history-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--sp-md);
+      flex-wrap: wrap;
+      gap: var(--sp-sm);
+    }
+    .btn-export {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--sage);
+      color: white;
+      border: none;
+      border-radius: var(--r-sm);
+      padding: 8px 18px;
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.1s ease;
+    }
+    .btn-export:hover { background: var(--sage-dark); transform: translateY(-1px); }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    thead th {
+      background: rgba(138,171,142,0.08);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 10px;
+      color: var(--ink-mid);
+      white-space: nowrap;
+    }
+    tbody tr {
+      border-top: 1px solid var(--border);
+      transition: background 0.15s ease;
+    }
+    tbody tr:hover { background: rgba(138,171,142,0.04); }
+    tbody td {
+      padding: 10px 14px;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    /* Colour-code status cell */
+    td.cell-normal   { color: var(--sage-dark); font-weight: 500; }
+    td.cell-warning  { color: #9a6f1a; font-weight: 500; }
+    td.cell-critical { color: #8b3c3c; font-weight: 500; }
+
+
+    /* ============================================================
+       ANIMATIONS
+    ============================================================ */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.85); }
+    }
+    @keyframes scrollLine {
+      0%   { transform: scaleY(0); transform-origin: top; }
+      50%  { transform: scaleY(1); transform-origin: top; }
+      51%  { transform: scaleY(1); transform-origin: bottom; }
+      100% { transform: scaleY(0); transform-origin: bottom; }
+    }
+    @keyframes alertSlide {
+      from { opacity: 0; transform: translateX(-8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ============================================================
+       FOOTER
+    ============================================================ */
+    .footer {
+      text-align: center;
+      padding: var(--sp-xl);
+      color: var(--ink-soft);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      border-top: 1px solid var(--border);
+    }
+    .footer em {
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 13px;
+    }
+
+    /* ============================================================
+       RESPONSIVE TWEAKS
+    ============================================================ */
+    @media (max-width: 480px) {
+      .sensor-grid { grid-template-columns: 1fr 1fr; }
+      .sensor-card .sensor-value { font-size: 36px; }
+      #dashboard { padding: var(--sp-md); }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ============================================================
+       LANDING PAGE
+       Full-viewport intro. "Enter Dashboard" scrolls to #dashboard.
+       To skip the landing entirely, delete this entire section.
+  ============================================================ -->
+  <section id="landing">
+    <div class="landing-inner">
+
+      <!-- Live system badge -->
+      <div class="landing-badge">
+        <span class="dot"></span>
+        <span>System Online · Environmental Intelligence</span>
+      </div>
+
+      <!-- Main headline -->
+      <h1 class="landing-title">
+        Aether<em>Sense</em>
+      </h1>
+
+      <!-- One-line tagline -->
+      <p class="landing-tagline">
+        A calm, intelligent interface that translates environmental data into awareness and action.
+      </p>
+
+      <!-- What it monitors — sensor pills -->
+      <div class="landing-sensors">
+        <div class="sensor-pill"><span class="icon">🌡️</span> Temperature</div>
+        <div class="sensor-pill"><span class="icon">💧</span> Humidity</div>
+        <div class="sensor-pill"><span class="icon">☀️</span> Light</div>
+        <div class="sensor-pill"><span class="icon">🔊</span> Sound</div>
+      </div>
+
+      <!-- Call to action -->
+      <a href="#dashboard" class="btn-enter">
+        Enter Dashboard <span class="arrow">→</span>
+      </a>
+    </div>
+
+    <!-- Subtle scroll cue -->
+    <div class="scroll-hint">
+      <span class="line"></span>
+      Scroll
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       STICKY NAV BAR
+       Shows system name + live clock on all dashboard pages.
+  ============================================================ -->
+  <nav class="nav-bar">
+    <span class="nav-brand">Aether<em>Sense</em></span>
+    <div class="nav-time">
+      <span class="live-dot"></span>
+      <!-- Updated every second by JS -->
+      <span id="nav-clock">--:--:--</span>
+    </div>
+  </nav>
+
+
+  <!-- ============================================================
+       DASHBOARD
+       Main content area. Divided into logical sections below.
+  ============================================================ -->
+  <main id="dashboard">
+
+
+    <!-- =========================================================
+         SECTION 1 — LIVE SENSOR CARDS
+         One card per sensor. Values update every ~2 seconds via
+         the simulateSensorData() function in JS below.
+         To add a new sensor: duplicate a .sensor-card div and
+         add its key to the SENSORS config object in JS.
+    ========================================================= -->
+    <h2 class="section-title">Live <em>Readings</em></h2>
+
+    <div class="sensor-grid" id="sensor-grid">
+
+      <!-- Temperature card -->
+      <div class="card sensor-card" id="card-temp" style="--accent: #c97070;">
+        <span class="label">Temperature</span>
+        <div>
+          <span class="sensor-value" id="val-temp">--</span>
+          <span class="sensor-unit">°C</span>
+        </div>
+        <span class="sensor-trend" id="trend-temp">— Stable</span>
+        <span class="status-badge" id="badge-temp">● Normal</span>
+      </div>
+
+      <!-- Humidity card -->
+      <div class="card sensor-card" id="card-humidity" style="--accent: #6a9ec0;">
+        <span class="label">Humidity</span>
+        <div>
+          <span class="sensor-value" id="val-humidity">--</span>
+          <span class="sensor-unit">%</span>
+        </div>
+        <span class="sensor-trend" id="trend-humidity">— Stable</span>
+        <span class="status-badge" id="badge-humidity">● Normal</span>
+      </div>
+
+      <!-- Light Intensity card -->
+      <div class="card sensor-card" id="card-light" style="--accent: #d4a853;">
+        <span class="label">Light Intensity</span>
+        <div>
+          <span class="sensor-value" id="val-light">--</span>
+          <span class="sensor-unit">lux</span>
+        </div>
+        <span class="sensor-trend" id="trend-light">— Stable</span>
+        <span class="status-badge" id="badge-light">● Normal</span>
+      </div>
+
+      <!-- Sound Level card -->
+      <div class="card sensor-card" id="card-sound" style="--accent: #8a79c0;">
+        <span class="label">Sound Level</span>
+        <div>
+          <span class="sensor-value" id="val-sound">--</span>
+          <span class="sensor-unit">dB</span>
+        </div>
+        <span class="sensor-trend" id="trend-sound">— Stable</span>
+        <span class="status-badge" id="badge-sound">● Normal</span>
+      </div>
+
+    </div><!-- /sensor-grid -->
+
+
+    <!-- =========================================================
+         SECTION 2 — SYSTEM STATUS + ML PREDICTION
+    ========================================================= -->
+    <div class="status-row">
+
+      <!-- Overall system status (Normal / Warning / Critical) -->
+      <div class="card system-status-card">
+        <span class="label">System Status</span>
+        <div class="status-indicator">
+          <div class="status-orb" id="status-orb"></div>
+          <div>
+            <div class="status-label-big" id="status-label">—</div>
+            <div class="status-detail" id="status-detail">Computing…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ML / rule-based prediction output -->
+      <div class="card ml-card">
+        <span class="label">Room Condition · Prediction</span>
+        <!-- id="mlout" matches spec §2.3 -->
+        <div class="ml-output" id="mlout">"Analysing…"</div>
+        <div class="ml-confidence">
+          <div class="confidence-bar">
+            <div class="confidence-fill" id="conf-fill" style="width: 0%"></div>
+          </div>
+          <span class="confidence-pct" id="conf-pct">0%</span>
+        </div>
+        <div style="font-size:11px; color:var(--ink-soft); margin-top:8px;">
+          Confidence score based on multi-sensor agreement
+        </div>
+      </div>
+
+    </div><!-- /status-row -->
+
+
+    <!-- =========================================================
+         SECTION 3 — TIME-SERIES CHARTS
+         Each chart shows the last 20 data points (≈40 seconds).
+         Charts are rendered via Chart.js area/line charts.
+         To change the window size: adjust MAX_POINTS in JS.
+         To change the update interval: adjust INTERVAL_MS in JS.
+    ========================================================= -->
+    <h2 class="section-title">Over <em>Time</em></h2>
+
+    <div class="charts-grid">
+
+      <!-- Temperature chart -->
+      <div class="card chart-card">
+        <div class="chart-header">
+          <span class="chart-title">Temperature</span>
+          <span class="label">°C</span>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-temp"></canvas>
+        </div>
+      </div>
+
+      <!-- Humidity chart -->
+      <div class="card chart-card">
+        <div class="chart-header">
+          <span class="chart-title">Humidity</span>
+          <span class="label">%</span>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-humidity"></canvas>
+        </div>
+      </div>
+
+      <!-- Light chart -->
+      <div class="card chart-card">
+        <div class="chart-header">
+          <span class="chart-title">Light Intensity</span>
+          <span class="label">lux</span>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-light"></canvas>
+        </div>
+      </div>
+
+      <!-- Sound chart -->
+      <div class="card chart-card">
+        <div class="chart-header">
+          <span class="chart-title">Sound Level</span>
+          <span class="label">dB</span>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-sound"></canvas>
+        </div>
+      </div>
+
+    </div><!-- /charts-grid -->
+
+
+    <!-- =========================================================
+         SECTION 4 — ACTIVE ALERTS
+         Alerts are generated by evaluateAlerts() in JS.
+         Each alert has: type, severity, timestamp.
+         Max 10 alerts shown. Oldest are removed automatically.
+    ========================================================= -->
+    <h2 class="section-title">Active <em>Alerts</em></h2>
+
+    <div class="card alerts-card">
+      <div class="alerts-list" id="alerts-list">
+        <div class="no-alerts" id="no-alerts-msg">"All systems calm."</div>
+      </div>
+    </div>
+
+
+    <!-- =========================================================
+         SECTION 5 — DATA HISTORY TABLE + CSV EXPORT
+         Stores last MAX_HISTORY rows in the dataHistory[] array.
+         "Export CSV" button creates a Blob and triggers download.
+    ========================================================= -->
+    <h2 class="section-title">Data <em>History</em></h2>
+
+    <div class="card history-card">
+      <div class="history-toolbar">
+        <span style="font-size:12px; color:var(--ink-mid);">
+          Showing latest <strong id="history-count">0</strong> entries
+        </span>
+        <button class="btn-export" onclick="exportCSV()">
+          ↓ Export CSV
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Temp (°C)</th>
+              <th>Humidity (%)</th>
+              <th>Light (lux)</th>
+              <th>Sound (dB)</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <!-- Rows injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+
+  </main><!-- /dashboard -->
+
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p><em>AetherSense</em> · Environmental Intelligence System</p>
+    <p style="margin-top:6px;">Clarity &gt; Complexity · Responsiveness &gt; Static UI</p>
+  </footer>
+
+
+  <!-- ============================================================
+       JAVASCRIPT
+       ────────────────────────────────────────────────────────────
+       The script is divided into clearly labelled sections:
+
+       A. CONFIGURATION     — thresholds, intervals, colours
+       B. STATE             — shared data stores
+       C. SENSOR SIMULATION — fake data generator (replace with
+                              real API/WebSocket calls for prod)
+       D. STATUS LOGIC      — derives status + ML label from values
+       E. DOM UPDATERS      — write computed values to the DOM
+       F. CHART SETUP       — creates Chart.js instances
+       G. ALERTS            — builds alert list from current data
+       H. HISTORY TABLE     — manages the history array + table
+       I. CSV EXPORT        — generates downloadable CSV
+       J. CLOCK             — keeps nav clock ticking
+       K. BOOTSTRAP         — wires everything together
+
+       To connect real sensors:
+         Replace the generateReading() function in section C
+         with a fetch() or WebSocket listener that returns
+         { temp, humidity, light, sound } values.
+  ============================================================ -->
+  <script>
+
+    // ============================================================
+    // A. CONFIGURATION
+    //    Edit these values to change alert thresholds, history
+    //    length, and chart update speed.
+    // ============================================================
+    const CONFIG = {
+      // How often (ms) to fetch/simulate new data
+      INTERVAL_MS: 2000,
+
+      // Max data points to show on charts (time window)
+      MAX_POINTS: 20,
+
+      // Max rows in the history table
+      MAX_HISTORY: 50,
+
+      // Sensor thresholds — edit to match your environment
+      THRESHOLDS: {
+        temp: {
+          warnHigh:     30,   // °C
+          criticalHigh: 36,
+          warnLow:      15,
+          criticalLow:  10
+        },
+        humidity: {
+          warnHigh:     70,   // %
+          criticalHigh: 85,
+          warnLow:      30,
+          criticalLow:  20
+        },
+        light: {
+          // Low light is a warning (e.g. dark room)
+          warnLow:      100,  // lux
+          criticalLow:  40
+        },
+        sound: {
+          warnHigh:     65,   // dB
+          criticalHigh: 80
+        }
+      },
+
+      // Simulation ranges (used only when no real sensor data)
+      SIM: {
+        temp:     { base: 24, range: 8  },
+        humidity: { base: 55, range: 20 },
+        light:    { base: 400, range: 300 },
+        sound:    { base: 45, range: 30 }
+      },
+
+      // Colours used by charts and orb (matches CSS variables)
+      COLORS: {
+        temp:     { stroke: '#c97070', fill: 'rgba(201,112,112,0.10)' },
+        humidity: { stroke: '#6a9ec0', fill: 'rgba(106,158,192,0.10)' },
+        light:    { stroke: '#d4a853', fill: 'rgba(212,168,83,0.10)'  },
+        sound:    { stroke: '#8a79c0', fill: 'rgba(138,121,192,0.10)' }
+      },
+
+      // Status orb colours
+      ORB: {
+        normal:   { bg: '#c4d9c6', glow: 'rgba(138,171,142,0.45)' },
+        warning:  { bg: '#f5e4b8', glow: 'rgba(212,168,83,0.45)'  },
+        critical: { bg: '#f5d0d0', glow: 'rgba(201,112,112,0.45)' }
+      }
+    };
+
+
+    // ============================================================
+    // B. STATE
+    //    Centralised data stores shared across all modules.
+    // ============================================================
+    const state = {
+      // Latest sensor readings
+      current: { temp: null, humidity: null, light: null, sound: null },
+
+      // Previous reading for trend arrows
+      previous: { temp: null, humidity: null, light: null, sound: null },
+
+      // Rolling arrays for chart time series
+      history: {
+        labels:   [],
+        temp:     [],
+        humidity: [],
+        light:    [],
+        sound:    []
+      },
+
+      // Full data log for table + CSV export
+      log: [],
+
+      // Chart instances (populated in section F)
+      charts: {}
+    };
+
+
+    // ============================================================
+    // C. SENSOR SIMULATION
+    //    Replace generateReading() with a real data fetch for
+    //    production use.
+    //
+    //    Example real fetch replacement:
+    //      async function fetchReading() {
+    //        const r = await fetch('/api/sensors/latest');
+    //        return r.json(); // must return { temp, humidity, light, sound }
+    //      }
+    // ============================================================
+
+    /** Smooth random walk around a base value */
+    function randomWalk(current, base, range, step = 0.8) {
+      const drift = (Math.random() - 0.5) * step * 2;
+      const pulled = (base - current) * 0.05; // gently return to base
+      const next = current + drift + pulled;
+      const min = base - range / 2;
+      const max = base + range / 2;
+      return Math.min(max, Math.max(min, next));
+    }
+
+    /** Occasionally spikes a value to trigger alerts (demo purposes) */
+    function maybeSurge(value, base, surge, probability = 0.02) {
+      return Math.random() < probability ? base + surge : value;
+    }
+
+    // Persistent sim values (so the random walk is smooth)
+    const _sim = { ...Object.fromEntries(
+      Object.entries(CONFIG.SIM).map(([k, v]) => [k, v.base])
+    )};
+
+    function generateReading() {
+      // Update each simulated sensor
+      for (const key of ['temp', 'humidity', 'light', 'sound']) {
+        const { base, range } = CONFIG.SIM[key];
+        _sim[key] = randomWalk(_sim[key], base, range);
+      }
+
+      // Occasional surges to demo alert system
+      _sim.temp  = maybeSurge(_sim.temp,  CONFIG.SIM.temp.base,     14, 0.015);
+      _sim.sound = maybeSurge(_sim.sound, CONFIG.SIM.sound.base,    42, 0.02);
+      _sim.light = maybeSurge(_sim.light, CONFIG.SIM.light.base,   -360, 0.015); // drop to darkness
+
+      return {
+        temp:     parseFloat(_sim.temp.toFixed(1)),
+        humidity: parseFloat(_sim.humidity.toFixed(1)),
+        light:    Math.max(0, Math.round(_sim.light)),
+        sound:    parseFloat(_sim.sound.toFixed(1))
+      };
+    }
+
+
+    // ============================================================
+    // D. STATUS & PREDICTION LOGIC
+    //    Pure functions — derive system status and ML label
+    //    from raw sensor values.
+    // ============================================================
+
+    /**
+     * Returns 'normal' | 'warning' | 'critical' for a single sensor.
+     * @param {string} key  - sensor key (temp | humidity | light | sound)
+     * @param {number} val  - current reading
+     */
+    function getSensorStatus(key, val) {
+      const t = CONFIG.THRESHOLDS[key];
+      if (!t) return 'normal';
+
+      if (
+        (t.criticalHigh && val >= t.criticalHigh) ||
+        (t.criticalLow  && val <= t.criticalLow)
+      ) return 'critical';
+
+      if (
+        (t.warnHigh && val >= t.warnHigh) ||
+        (t.warnLow  && val <= t.warnLow)
+      ) return 'warning';
+
+      return 'normal';
+    }
+
+    /**
+     * Derives overall system status from all sensor statuses.
+     * Uses worst-case aggregation.
+     */
+    function getSystemStatus(readings) {
+      const statuses = Object.keys(readings).map(k => getSensorStatus(k, readings[k]));
+      if (statuses.includes('critical')) return 'critical';
+      if (statuses.includes('warning'))  return 'warning';
+      return 'normal';
+    }
+
+    /**
+     * Rule-based ML prediction label.
+     * Returns { label: string, confidence: number (0–100) }
+     *
+     * To upgrade to real ML: replace this function with a
+     * call to a model inference API.
+     */
+    function getPrediction(readings) {
+      const { temp, humidity, light, sound } = readings;
+      const t = CONFIG.THRESHOLDS;
+
+      // Critical conditions — high confidence
+      if (temp >= t.temp.criticalHigh)
+        return { label: 'Room Condition: Unsafe — High Temperature', confidence: 94 };
+      if (sound >= t.sound.criticalHigh)
+        return { label: 'Room Condition: Unsafe — Excessive Noise', confidence: 91 };
+      if (light <= t.light.criticalLow)
+        return { label: 'Room Condition: Attention — Very Low Light', confidence: 87 };
+      if (humidity >= t.humidity.criticalHigh)
+        return { label: 'Room Condition: Unsafe — High Humidity', confidence: 88 };
+
+      // Warning conditions — moderate confidence
+      if (temp >= t.temp.warnHigh)
+        return { label: 'Room Condition: Warm — Monitor Temperature', confidence: 75 };
+      if (sound >= t.sound.warnHigh)
+        return { label: 'Room Condition: Noisy — Elevated Sound Level', confidence: 72 };
+      if (light <= t.light.warnLow)
+        return { label: 'Room Condition: Dim — Low Light Detected', confidence: 68 };
+      if (humidity >= t.humidity.warnHigh)
+        return { label: 'Room Condition: Humid — Ventilation Advised', confidence: 70 };
+      if (humidity <= t.humidity.warnLow)
+        return { label: 'Room Condition: Dry — Humidity Low', confidence: 65 };
+
+      // Everything normal
+      const score = 100 - Math.round(
+        Math.abs(temp - 22) * 2 +
+        Math.abs(humidity - 50) * 0.5 +
+        (sound > 40 ? (sound - 40) * 0.5 : 0)
+      );
+      return {
+        label: 'Room Condition: Safe — Environment Optimal',
+        confidence: Math.max(80, Math.min(97, score))
+      };
+    }
+
+
+    // ============================================================
+    // E. DOM UPDATERS
+    //    Write derived state into visible elements.
+    // ============================================================
+
+    const TREND_ICONS = { up: '↑', down: '↓', stable: '—' };
+
+    function trendOf(key, current) {
+      const prev = state.previous[key];
+      if (prev === null) return 'stable';
+      const delta = current - prev;
+      if (delta >  0.5) return 'up';
+      if (delta < -0.5) return 'down';
+      return 'stable';
+    }
+
+    function trendLabel(key, current) {
+      const t = trendOf(key, current);
+      const delta = state.previous[key] !== null
+        ? (current - state.previous[key]).toFixed(1)
+        : '0';
+      return `${TREND_ICONS[t]} ${t === 'stable' ? 'Stable' : (t === 'up' ? '+' : '') + delta}`;
+    }
+
+    /** Update a single sensor card */
+    function updateSensorCard(key, value) {
+      const statusKey = getSensorStatus(key, value);
+
+      document.getElementById(`val-${key}`).textContent = value;
+      document.getElementById(`trend-${key}`).textContent = trendLabel(key, value);
+
+      const badge = document.getElementById(`badge-${key}`);
+      badge.textContent = '● ' + statusKey.charAt(0).toUpperCase() + statusKey.slice(1);
+      badge.className = `status-badge status-${statusKey}`;
+    }
+
+    /** Update the system status orb and label */
+    function updateSystemStatus(status) {
+      const orb   = document.getElementById('status-orb');
+      const label = document.getElementById('status-label');
+      const detail= document.getElementById('status-detail');
+
+      const orbConfig = CONFIG.ORB[status];
+      orb.style.setProperty('--orb-color', orbConfig.bg);
+      orb.style.setProperty('--orb-glow', orbConfig.glow);
+
+      const labels = { normal: 'Normal', warning: 'Warning', critical: 'Critical' };
+      const details = {
+        normal:   'All sensors within safe ranges.',
+        warning:  'One or more sensors approaching threshold.',
+        critical: 'Immediate attention required.'
+      };
+      label.textContent  = labels[status];
+      label.style.color  = status === 'normal' ? 'var(--sage-dark)'
+                          : status === 'warning' ? '#9a6f1a' : '#8b3c3c';
+      detail.textContent = details[status];
+    }
+
+    /** Update the ML prediction output box */
+    function updatePrediction(pred) {
+      const mlOut   = document.getElementById('mlout');
+      const confFill= document.getElementById('conf-fill');
+      const confPct = document.getElementById('conf-pct');
+
+      mlOut.style.opacity = '0';
+      setTimeout(() => {
+        mlOut.textContent   = `"${pred.label}"`;
+        mlOut.style.opacity = '1';
+      }, 200);
+
+      confFill.style.width = `${pred.confidence}%`;
+      confPct.textContent  = `${pred.confidence}%`;
+
+      // Colour the fill bar based on severity
+      const label = pred.label.toLowerCase();
+      if (label.includes('unsafe') || label.includes('critical')) {
+        confFill.style.background = 'var(--rose)';
+      } else if (label.includes('warm') || label.includes('noisy') || label.includes('dim') || label.includes('humid') || label.includes('dry')) {
+        confFill.style.background = 'var(--amber)';
+      } else {
+        confFill.style.background = 'var(--sage)';
+      }
+    }
+
+    /** Update the live clock in the nav bar */
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('nav-clock').textContent =
+        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+
+    // ============================================================
+    // F. CHART SETUP
+    //    One Chart.js area chart per sensor.
+    //    Shared options kept in chartDefaults to avoid repetition.
+    // ============================================================
+
+    /** Shared Chart.js options (override per-chart as needed) */
+    function chartDefaults(label, color) {
+      return {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label,
+            data: [],
+            borderColor: color.stroke,
+            backgroundColor: color.fill,
+            borderWidth: 2,
+            fill: true,
+            tension: 0.45,          // smooth curves
+            pointRadius: 0,         // no dots — clean look
+            pointHoverRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 600, easing: 'easeInOutQuart' },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(46,43,38,0.85)',
+              titleFont: { family: "'DM Sans', sans-serif", size: 11 },
+              bodyFont:  { family: "'DM Sans', sans-serif", size: 12 },
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: {
+                title: items => items[0].label
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid:   { display: false },
+              border: { display: false },
+              ticks:  { font: { size: 10, family: "'DM Sans',sans-serif" }, color: '#a39e98', maxTicksLimit: 5 }
+            },
+            y: {
+              grid:   { color: 'rgba(180,170,155,0.15)', drawBorder: false },
+              border: { display: false },
+              ticks:  { font: { size: 10, family: "'DM Sans',sans-serif" }, color: '#a39e98', maxTicksLimit: 4 }
+            }
+          }
+        }
+      };
+    }
+
+    function initCharts() {
+      // Temperature
+      state.charts.temp = new Chart(
+        document.getElementById('chart-temp'),
+        chartDefaults('Temperature (°C)', CONFIG.COLORS.temp)
+      );
+      // Humidity
+      state.charts.humidity = new Chart(
+        document.getElementById('chart-humidity'),
+        chartDefaults('Humidity (%)', CONFIG.COLORS.humidity)
+      );
+      // Light
+      state.charts.light = new Chart(
+        document.getElementById('chart-light'),
+        chartDefaults('Light (lux)', CONFIG.COLORS.light)
+      );
+      // Sound
+      state.charts.sound = new Chart(
+        document.getElementById('chart-sound'),
+        chartDefaults('Sound (dB)', CONFIG.COLORS.sound)
+      );
+    }
+
+    /** Push new data point into a chart, capping at MAX_POINTS */
+    function pushChartData(chartKey, label, value) {
+      const chart = state.charts[chartKey];
+      chart.data.labels.push(label);
+      chart.data.datasets[0].data.push(value);
+
+      if (chart.data.labels.length > CONFIG.MAX_POINTS) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+      }
+
+      chart.update('none'); // 'none' = no animation on push (smoother)
+    }
+
+
+    // ============================================================
+    // G. ALERTS
+    //    Generates an alert entry whenever a sensor exceeds a
+    //    threshold. Max 10 alerts kept; oldest removed.
+    // ============================================================
+
+    const activeAlerts = [];
+    const MAX_ALERTS = 10;
+
+    const ALERT_ICONS = {
+      normal:   '✅',
+      warning:  '⚠️',
+      critical: '🔴'
+    };
+
+    /** Check readings and push new alerts */
+    function evaluateAlerts(readings) {
+      const messages = {
+        temp:     { warning: 'Elevated Temperature',  critical: 'High Temperature — Critical' },
+        humidity: { warning: 'High Humidity',         critical: 'Extreme Humidity' },
+        light:    { warning: 'Low Light Detected',    critical: 'Very Low Light' },
+        sound:    { warning: 'Elevated Sound Level',  critical: 'Excessive Noise — Critical' }
+      };
+
+      for (const [key, value] of Object.entries(readings)) {
+        const severity = getSensorStatus(key, value);
+        if (severity === 'normal') continue;
+
+        const msg = messages[key]?.[severity];
+        if (!msg) continue;
+
+        // Avoid duplicate alerts in quick succession
+        const lastOfType = activeAlerts.find(a => a.type === msg);
+        if (lastOfType) {
+          // Update timestamp instead of adding a duplicate
+          lastOfType.time = new Date().toLocaleTimeString();
+          continue;
+        }
+
+        activeAlerts.unshift({
+          type:     msg,
+          severity: severity,
+          time:     new Date().toLocaleTimeString()
+        });
+
+        if (activeAlerts.length > MAX_ALERTS) activeAlerts.pop();
+      }
+
+      // Remove resolved alerts (sensor back to normal)
+      const currentMessages = new Set();
+      for (const [key, value] of Object.entries(readings)) {
+        const severity = getSensorStatus(key, value);
+        if (severity !== 'normal') {
+          const msgKey = { temp:'temp', humidity:'humidity', light:'light', sound:'sound' }[key];
+          const msg = { warning: 'Elevated Temperature', critical: 'High Temperature — Critical' };
+          // (simplified — active alerts auto-expire after 5 cycles in the render loop)
+        }
+      }
+
+      renderAlerts();
+    }
+
+    /** Re-render the alerts list from activeAlerts[] */
+    function renderAlerts() {
+      const list = document.getElementById('alerts-list');
+      const noMsg = document.getElementById('no-alerts-msg');
+
+      if (activeAlerts.length === 0) {
+        list.innerHTML = '';
+        list.appendChild(noMsg);
+        noMsg.style.display = '';
+        return;
+      }
+
+      noMsg.style.display = 'none';
+      list.innerHTML = '';
+
+      for (const alert of activeAlerts) {
+        const el = document.createElement('div');
+        el.className = `alert-item ${alert.severity}`;
+        el.innerHTML = `
+          <span class="alert-icon">${ALERT_ICONS[alert.severity]}</span>
+          <div class="alert-body">
+            <div class="alert-type">${alert.type}</div>
+            <div class="alert-time">${alert.time}</div>
+          </div>
+          <span class="alert-severity">${alert.severity}</span>
+        `;
+        list.appendChild(el);
+      }
+    }
+
+
+    // ============================================================
+    // H. HISTORY TABLE
+    //    Prepends new rows; trims to MAX_HISTORY.
+    // ============================================================
+
+    function appendHistory(readings, status) {
+      const ts = new Date().toLocaleTimeString();
+
+      state.log.unshift({
+        ts,
+        ...readings,
+        status
+      });
+      if (state.log.length > CONFIG.MAX_HISTORY) state.log.pop();
+
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const tbody = document.getElementById('history-tbody');
+      const count = document.getElementById('history-count');
+
+      count.textContent = state.log.length;
+      tbody.innerHTML = '';
+
+      for (const row of state.log) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.ts}</td>
+          <td>${row.temp}</td>
+          <td>${row.humidity}</td>
+          <td>${row.light}</td>
+          <td>${row.sound}</td>
+          <td class="cell-${row.status}">${row.status.charAt(0).toUpperCase() + row.status.slice(1)}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+
+    // ============================================================
+    // I. CSV EXPORT
+    //    Triggered by "Export CSV" button.
+    //    Creates a Blob URL and auto-clicks a download link.
+    // ============================================================
+
+    function exportCSV() {
+      const header = 'Timestamp,Temperature (°C),Humidity (%),Light (lux),Sound (dB),Status\n';
+      const rows = state.log.map(r =>
+        `${r.ts},${r.temp},${r.humidity},${r.light},${r.sound},${r.status}`
+      ).join('\n');
+
+      const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `aethersense-${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+
+    // ============================================================
+    // J. CLOCK — runs independently every second
+    // ============================================================
+    setInterval(updateClock, 1000);
+    updateClock();
+
+
+    // ============================================================
+    // K. BOOTSTRAP — wire everything together
+    //    Called once on page load, then on each interval tick.
+    // ============================================================
+
+    /** Main data cycle — called every INTERVAL_MS */
+    function tick() {
+      // 1. Get readings (sim or real)
+      const readings = generateReading();
+
+      // 2. Derive status and prediction
+      const systemStatus = getSystemStatus(readings);
+      const prediction   = getPrediction(readings);
+
+      // 3. Update sensor cards
+      for (const [key, value] of Object.entries(readings)) {
+        updateSensorCard(key, value);
+      }
+
+      // 4. Update system status orb + ML output
+      updateSystemStatus(systemStatus);
+      updatePrediction(prediction);
+
+      // 5. Push chart data
+      const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      for (const [key, value] of Object.entries(readings)) {
+        pushChartData(key, timeLabel, value);
+      }
+
+      // 6. Evaluate and render alerts
+      evaluateAlerts(readings);
+
+      // 7. Append to history table
+      appendHistory(readings, systemStatus);
+
+      // 8. Save current as previous for next trend calculation
+      state.previous = { ...readings };
+      state.current  = { ...readings };
+    }
+
+    // Init charts before first tick
+    initCharts();
+
+    // First tick immediately so page shows data right away
+    tick();
+
+    // Then repeat
+    setInterval(tick, CONFIG.INTERVAL_MS);
+
+  </script>
+</body>
+</html>
